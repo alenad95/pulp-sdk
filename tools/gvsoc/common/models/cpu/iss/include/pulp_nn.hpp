@@ -127,7 +127,12 @@ PV_OP1_RS_EXEC_NN(abs,ABS)
 #define PV_OP_RS_EXEC_NN_2(insn_name,lib_name)                                           \
 static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_4, REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_4, REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SB_4, REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -139,7 +144,12 @@ static inline iss_insn_t *pv_##insn_name##_n_sc_exec(iss_t *iss, iss_insn_t *ins
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_2, REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_2, REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SB_2, REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -152,7 +162,12 @@ static inline iss_insn_t *pv_##insn_name##_c_sc_exec(iss_t *iss, iss_insn_t *ins
 #define PV_OP_RU_EXEC_NN_2(insn_name,lib_name)                                           \
 static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_4, REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_4, REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SB_4, REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -164,7 +179,12 @@ static inline iss_insn_t *pv_##insn_name##_n_sc_exec(iss_t *iss, iss_insn_t *ins
                                                                                                \
 static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_2, REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL2(lib_VEC_##lib_name##_2, REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_SB_2, REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -184,7 +204,12 @@ PV_OP_RS_EXEC_NN_2(dotusp,DOTUSP)
 #define PV_OP_RRS_EXEC_NN_2(insn_name,lib_name)                                           \
 static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_4, REG_GET(2), REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -195,7 +220,12 @@ static inline iss_insn_t *pv_##insn_name##_n_sc_exec(iss_t *iss, iss_insn_t *ins
 }                                                                                            \
 static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_2, REG_GET(2), REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -211,7 +241,12 @@ PV_OP_RRS_EXEC_NN_2(sdotusp,SDOTUSP)
 #define PV_OP_RRU_EXEC_NN_2(insn_name,lib_name)                                           \
 static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_4, REG_GET(2), REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \
@@ -223,7 +258,12 @@ static inline iss_insn_t *pv_##insn_name##_n_sc_exec(iss_t *iss, iss_insn_t *ins
                                                                                              \
 static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                \
 {                                                                                            \
-  REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  if(insn->args[4].status_based == false) {\
+    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(2), REG_GET(0), REG_GET(1)));    \
+  }\
+  else { \
+    REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_2, REG_GET(2), REG_GET(0), REG_GET(1), iss));    \
+  }\
   return insn->next;                                                                         \
 }                                                                                            \
                                                                                              \

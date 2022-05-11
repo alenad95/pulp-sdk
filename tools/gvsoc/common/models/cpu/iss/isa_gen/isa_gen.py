@@ -104,6 +104,19 @@ class OpcodeField(object):
     def set_latency(self, latency):
         self.latency = latency
 
+class StatusBased(object):
+    def __init__(self, flags=[], sb=False):
+        self.flags = ['ISS_DECODER_ARG_FLAG_NONE'] + flags
+        self.sb = sb
+    
+    def gen(self, isaFile, indent=0):
+        if self.sb:
+            self.flags.append('ISS_DECODER_ARG_FLAG_SB')
+        dump(isaFile, '%s{\n' % (' '*indent))
+        dump(isaFile, '%s  .type=ISS_DECODER_ARG_TYPE_FLAG,\n' % (' '*indent))
+        dump(isaFile, '%s  .flags=(iss_decoder_arg_flag_e)(%s),\n' % (' '*indent, ' | '.join(self.flags)))
+        dump(isaFile, '\n%s},\n' % (' '*indent))        
+
 class Indirect(OpcodeField):
     def __init__(self, base, offset=None, postInc=False, preInc=False):
         self.base = base

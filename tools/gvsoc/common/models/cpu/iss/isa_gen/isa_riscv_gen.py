@@ -97,6 +97,7 @@ class R5(Instr):
             self.args = [   OutReg(0, Range(7,  5)),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
+                            StatusBased(sb=True),
                             ]
         elif format == 'R64':
             self.args = [   OutReg64(0, Range(7,  5)),
@@ -196,6 +197,7 @@ class R5(Instr):
                             InReg (2, Range(7,  5), dumpName=False),
                             InReg (0, Range(15, 5)),
                             InReg (1, Range(20, 5)),
+                            StatusBased(sb=True),
                             ]
         elif format == 'LRR':
             self.args = [   OutReg(0, Range(7,  5)),

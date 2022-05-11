@@ -968,6 +968,414 @@ VEC_DOTP(DOTUSP, int32_t, uint32_t, int32_t, uint16_t, int16_t, 16, 2, *)
 VEC_DOTP(DOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 8, 4, *)
 
 
+#define VEC_DOTP_SB(operName, typeOut, typeA, typeB, elemTypeA, elemTypeB, elemSize, num_elem, sign, oper) \
+static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typeA a, typeB b, iss_t *iss) { \
+  typeOut out = 0;                                                                   \
+  if (iss->cpu.csr.sb_legacy == 0x01) {                                              \
+    int i;                                                                           \
+    if(elemSize >= 8){                                                               \
+      elemTypeA *tmp_a = (elemTypeA*)&a;                                             \
+      elemTypeB *tmp_b = (elemTypeB*)&b;                                             \
+      for (i = 0; i < num_elem; i++)                                                 \
+        out += tmp_a[i] oper tmp_b[i];                                                \
+      return out;                                                                    \
+    }                                                                                \
+    else {                                                                           \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      if(elemSize == 4) {                                                            \
+        for(i = 0; i < (num_elem >> 1); i++) {                                       \
+          a0 = tmp_a[i] & 0x0F;                                                      \
+          a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+          a1 = (tmp_a[i]>>4) & 0x0F;                                                 \
+          a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+          b0 = tmp_b[i] & 0x0F;                                                      \
+          b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+          b1 = (tmp_b[i]>>4) & 0x0F;                                                 \
+          b1 = (sign & 0x1) ? ((b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F) ): (b1 & 0x0F);\
+          int mid = (a1 oper b1 + a0 oper b0);                                       \
+          out += mid;                                                                 \
+        }                                                                            \
+      }                                                                              \
+      else if(elemSize == 2) {                                                       \
+        int8_t a2,a3;                                                                \
+        int8_t b2, b3;                                                               \
+        for( i = 0; i < (num_elem >> 2); i++) {                                      \
+          a0 = (tmp_a[i] & 0x03);                                                    \
+          a0 = (sign & 0x2) ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+          a1 = (tmp_a[i]>>2 & 0x03);                                                 \
+          a1 = (sign & 0x2) ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+          a2 = (tmp_a[i]>>4 & 0x03);                                                 \
+          a2 = (sign & 0x2) ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+          a3 = (tmp_a[i]>>6 & 0x03);                                                 \
+          a3 = (sign & 0x2) ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+          b0 = (tmp_b[i] & 0x03);                                                    \
+          b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+          b1 = (tmp_b[i]>>2 & 0x03);                                                 \
+          b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+          b2 = (tmp_b[i]>>4 & 0x03);                                                 \
+          b2 = (sign & 0x1) ? ((b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03) ): (b2 & 0x03);\
+          b3 = (tmp_b[i]>>6 & 0x03);                                                 \
+          b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
+                                                                                     \
+          out += (a0 oper b0) + (a1 oper b1) + (a2 oper b2) + (a3 oper b3);           \
+        }                                                                            \
+      }                                                                              \
+      return out;                                                                    \
+    }                                                                                \
+  }                                                                                  \
+  else {                                                                             \
+    switch (iss->cpu.csr.ivec_fmt) {                                                 \
+    case 0x00: {                                                                     \
+      int32_t *tmp_a = (int32_t*)&a;                                                 \
+      int32_t *tmp_b = (int32_t*)&b;                                                 \
+      if (sign == 0x3)                                                               \
+        out += *tmp_a oper *tmp_b;                                                   \
+      else if (sign == 0x1)                                                          \
+        out += (uint32_t)*tmp_a oper *tmp_b;                                          \
+      else if (sign == 0x2)                                                          \
+        out += *tmp_a oper (uint32_t)*tmp_b;                                          \
+      else                                                                           \
+        out += (uint32_t)*tmp_a oper (uint32_t)*tmp_b;                                \
+      break;                                                                         \
+    }                                                                                \
+    case 0x01: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 2; i++)                                                        \
+        if (sign == 0x3)                                                             \
+          out += tmp_a[i] oper tmp_b[i];                                              \
+        else if (sign == 0x1)                                                        \
+          out += (uint16_t)tmp_a[i] oper tmp_b[i];                                    \
+        else if (sign == 0x2)                                                        \
+          out += tmp_a[i] oper (uint16_t)tmp_b[i];                                    \
+        else                                                                         \
+          out += (uint16_t)tmp_a[i] oper (uint16_t)tmp_b[i];                          \
+      break;                                                                         \
+    }                                                                                \
+    case 0x02: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++)                                                        \
+        if (sign == 0x3)                                                             \
+          out += tmp_a[i] oper tmp_b[i];                                              \
+        else if (sign == 0x1)                                                        \
+          out += (uint8_t)tmp_a[i] oper tmp_b[i];                                     \
+        else if (sign == 0x2)                                                        \
+          out += tmp_a[i] oper (uint8_t)tmp_b[i];                                     \
+        else                                                                         \
+          out += (uint8_t)tmp_a[i] oper (uint8_t)tmp_b[i];                            \
+    break;                                                                           \
+    }                                                                                \
+    case 0x03: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = tmp_a[i] & 0x0F;                                                        \
+        a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+        a1 = (tmp_a[i]>>4) & 0x0F;                                                   \
+        a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+        b0 = tmp_b[i] & 0x0F;                                                        \
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+        b1 = (tmp_b[i]>>4) & 0x0F;                                                   \
+        b1 = (sign & 0x1) ? ((b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F) ): (b1 & 0x0F);\
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1);                       \
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1);                      \
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1));   \
+        out += mid;                                                                   \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x04: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1, a2, a3;                                                         \
+      int8_t b0, b1, b2, b3;                                                         \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = (tmp_a[i] & 0x03);                                                      \
+        a0 = (sign & 0x2) ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+        a1 = (tmp_a[i]>>2 & 0x03);                                                   \
+        a1 = (sign & 0x2) ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+        a2 = (tmp_a[i]>>4 & 0x03);                                                   \
+        a2 = (sign & 0x2) ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+        a3 = (tmp_a[i]>>6 & 0x03);                                                   \
+        a3 = (sign & 0x2) ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+        b0 = (tmp_b[i] & 0x03);                                                      \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+        b1 = (tmp_b[i]>>2 & 0x03);                                                   \
+        b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+        b2 = (tmp_b[i]>>4 & 0x03);                                                   \
+        b2 = (sign & 0x1) ? ((b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03) ): (b2 & 0x03);\
+        b3 = (tmp_b[i]>>6 & 0x03);                                                   \
+        b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1) + ((uint8_t)a2 oper b2) + ((uint8_t)a3 oper b3);\
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1) + (a2 oper (uint8_t) b2) + (a3 oper (uint8_t)b3);\
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1)) + ((uint8_t)a2 oper (uint8_t)b2) + (((uint8_t)a3 oper (uint8_t)b3));\
+        out += mid;                                                                   \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x05: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = tmp_a[i] & 0x0F;                                                        \
+        a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+        a1 = (tmp_a[i] >> 4) & 0x0F;                                                 \
+        a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+        b0 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i&0x1)*4)) & 0x03;\
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+        b1 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i&0x1)*4)+2) & 0x03;\
+        b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1);                       \
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1);                      \
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1));   \
+        out += mid;                                                                   \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x06: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0;                                                                     \
+      int8_t b0;                                                                     \
+      int i;                                                                         \
+      for(i=0; i<4; i++) {                                                           \
+        int mid;                                                                     \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[(i>>2) + iss->cpu.csr.ivec_mixed_cycle] >> (i * 2)) & 0x03;      \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = a0 oper b0;                                                          \
+        else if (sign == 0x1)                                                        \
+          mid = (uint8_t)a0 oper b0;                                                 \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint8_t)b0;                                                 \
+        else                                                                         \
+          mid = (uint8_t)a0 oper (uint8_t)b0;                                        \
+        out += mid;                                                                   \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x07: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int16_t a0;                                                                    \
+      int16_t b0;                                                                    \
+      int i;                                                                         \
+      for(i=0; i<2; i++) {                                                           \
+        int mid;                                                                     \
+        int b_ind = iss->cpu.csr.ivec_mixed_cycle >> 2;                              \
+        int b_sh  = ((iss->cpu.csr.ivec_mixed_cycle & 0x3) * 4) + i * 2;             \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[b_ind] >> b_sh) & 0x3;                                           \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? (b0 | 0xFFFC) : (b0 & 0x03) ) : (b0 & 0x03);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+        out += mid;                                                                   \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 7) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x08: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0;                                                                     \
+      int8_t b0;                                                                     \
+      int i;                                                                         \
+      for(i=0; i<4; i++) {                                                           \
+        int mid;                                                                     \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i & 0x1) * 4)) & 0x0F;\
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint8_t)a0 oper b0;                                                 \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint8_t) b0;                                                \
+        else                                                                         \
+          mid = (uint8_t)a0 oper (uint8_t)b0;                                        \
+        out += mid;                                                                   \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x09: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int16_t a0;                                                                    \
+      int16_t b0;                                                                    \
+      int i;                                                                         \
+      for(i=0; i<2; i++) {                                                           \
+        int mid;                                                                     \
+        int b_ind = iss->cpu.csr.ivec_mixed_cycle >> 1;                              \
+        int b_sh  = (i + (iss->cpu.csr.ivec_mixed_cycle & 0x1)*2) * 4;               \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[b_ind] >> b_sh) & 0x0F;                                          \
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xFFF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+        out += mid;                                                                   \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0xA: {                                                                      \
+    int16_t *tmp_a = (int16_t*)&a;                                                   \
+    int16_t *tmp_b = (int16_t*)&b;                                                   \
+    int16_t a0;                                                                      \
+    int16_t b0;                                                                      \
+    int i;                                                                           \
+    for(i=0; i<2; i++) {                                                             \
+      int mid;                                                                       \
+      a0 = tmp_a[i];                                                                 \
+      b0 = (tmp_b[iss->cpu.csr.ivec_mixed_cycle] >> (i*8)) &0xFF;                    \
+      b0 = (sign & 0x1) ? ((b0 & 0x80) ? (b0 | 0xFF00) : (b0 & 0xFF) ): (b0 & 0xFF); \
+                                                                                     \
+      if(sign == 0x3)                                                                \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+      out += mid;                                                                     \
+    }                                                                                \
+                                                                                     \
+    if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                   \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+  }                                                                                  \
+                                                                                     \
+  return out;                                                                        \
+}                                                                                    \
+}
+
+VEC_DOTP_SB(DOTSP, int32_t, int32_t, int32_t, int16_t, int16_t, 16, 2, 0x3, *)
+VEC_DOTP_SB(DOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 8, 4, 0x3, *)
+VEC_DOTP_SB(DOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 4, 8, 0x3, *)
+VEC_DOTP_SB(DOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 2, 16, 0x3, *)
+
+VEC_DOTP_SB(DOTUP, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, 16, 2, 0x0, *)
+VEC_DOTP_SB(DOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 8, 4, 0x0, *)
+VEC_DOTP_SB(DOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 4, 8, 0x0, *);
+VEC_DOTP_SB(DOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 2, 16, 0x0, *)
+
+VEC_DOTP_SB(DOTUSP, int32_t, uint32_t, int32_t, uint16_t, int16_t, 16, 2, 0x1, *)
+VEC_DOTP_SB(DOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 8, 4, 0x1, *)
+VEC_DOTP_SB(DOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 4, 8, 0x1, *)
+VEC_DOTP_SB(DOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 2, 16, 0x1, *)
 
 #define VEC_SDOT(operName, typeOut, typeA, typeB, elemTypeA, elemTypeB, elemSize, num_elem, oper)                \
 static inline typeOut lib_VEC_##operName##_##elemSize(iss_cpu_state_t *s, typeOut out, typeA a, typeB b) {  \
@@ -996,6 +1404,418 @@ VEC_SDOT(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 8, 4, *)
 
 VEC_SDOT(SDOTUSP, int32_t, uint32_t, int32_t, uint16_t, int16_t, 16, 2, *)
 VEC_SDOT(SDOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 8, 4, *)
+
+
+/* Status-based VEC SDOTP instructions */
+
+#define VEC_SDOT_SB(operName, typeOut, typeA, typeB, elemTypeA, elemTypeB, elemSize, num_elem, sign, oper) \
+static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typeOut out, typeA a, typeB b, iss_t *iss) { \
+  if (iss->cpu.csr.sb_legacy == 0x01) {                                              \
+    int i;                                                                           \
+    if(elemSize >= 8){                                                               \
+      elemTypeA *tmp_a = (elemTypeA*)&a;                                             \
+      elemTypeB *tmp_b = (elemTypeB*)&b;                                             \
+      for (i = 0; i < num_elem; i++)                                                 \
+        out += tmp_a[i] oper tmp_b[i];                                               \
+      return out;                                                                    \
+    }                                                                                \
+    else {                                                                           \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      if(elemSize == 4) {                                                            \
+        for(i = 0; i < (num_elem >> 1); i++) {                                       \
+          a0 = tmp_a[i] & 0x0F;                                                      \
+          a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+          a1 = (tmp_a[i]>>4) & 0x0F;                                                 \
+          a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+          b0 = tmp_b[i] & 0x0F;                                                      \
+          b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+          b1 = (tmp_b[i]>>4) & 0x0F;                                                 \
+          b1 = (sign & 0x1) ? ((b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F) ): (b1 & 0x0F);\
+          int mid = (a1 oper b1 + a0 oper b0);                                       \
+          out += mid;                                                                \
+        }                                                                            \
+      }                                                                              \
+      else if(elemSize == 2) {                                                       \
+        int8_t a2,a3;                                                                \
+        int8_t b2, b3;                                                               \
+        for( i = 0; i < (num_elem >> 2); i++) {                                      \
+          a0 = (tmp_a[i] & 0x03);                                                    \
+          a0 = (sign & 0x2) ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+          a1 = (tmp_a[i]>>2 & 0x03);                                                 \
+          a1 = (sign & 0x2) ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+          a2 = (tmp_a[i]>>4 & 0x03);                                                 \
+          a2 = (sign & 0x2) ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+          a3 = (tmp_a[i]>>6 & 0x03);                                                 \
+          a3 = (sign & 0x2) ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+          b0 = (tmp_b[i] & 0x03);                                                    \
+          b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+          b1 = (tmp_b[i]>>2 & 0x03);                                                 \
+          b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+          b2 = (tmp_b[i]>>4 & 0x03);                                                 \
+          b2 = (sign & 0x1) ? ((b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03) ): (b2 & 0x03);\
+          b3 = (tmp_b[i]>>6 & 0x03);                                                 \
+          b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
+                                                                                     \
+          out += (a0 oper b0) + (a1 oper b1) + (a2 oper b2) + (a3 oper b3);          \
+        }                                                                            \
+      }                                                                              \
+      return out;                                                                    \
+    }                                                                                \
+  }                                                                                  \
+  else {                                                                             \
+    switch (iss->cpu.csr.ivec_fmt) {                                                 \
+    case 0x00: {                                                                     \
+      int32_t *tmp_a = (int32_t*)&a;                                                 \
+      int32_t *tmp_b = (int32_t*)&b;                                                 \
+      if (sign == 0x3)                                                               \
+        out += *tmp_a oper *tmp_b;                                                   \
+      else if (sign == 0x1)                                                          \
+        out += (uint32_t)*tmp_a oper *tmp_b;                                         \
+      else if (sign == 0x2)                                                          \
+        out += *tmp_a oper (uint32_t)*tmp_b;                                         \
+      else                                                                           \
+        out += (uint32_t)*tmp_a oper (uint32_t)*tmp_b;                               \
+      break;                                                                         \
+    }                                                                                \
+    case 0x01: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 2; i++)                                                        \
+        if (sign == 0x3)                                                             \
+          out += tmp_a[i] oper tmp_b[i];                                             \
+        else if (sign == 0x1)                                                        \
+          out += (uint16_t)tmp_a[i] oper tmp_b[i];                                   \
+        else if (sign == 0x2)                                                        \
+          out += tmp_a[i] oper (uint16_t)tmp_b[i];                                   \
+        else                                                                         \
+          out += (uint16_t)tmp_a[i] oper (uint16_t)tmp_b[i];                         \
+      break;                                                                         \
+    }                                                                                \
+    case 0x02: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++)                                                        \
+        if (sign == 0x3)                                                             \
+          out += tmp_a[i] oper tmp_b[i];                                             \
+        else if (sign == 0x1)                                                        \
+          out += (uint8_t)tmp_a[i] oper tmp_b[i];                                    \
+        else if (sign == 0x2)                                                        \
+          out += tmp_a[i] oper (uint8_t)tmp_b[i];                                    \
+        else                                                                         \
+          out += (uint8_t)tmp_a[i] oper (uint8_t)tmp_b[i];                           \
+    break;                                                                           \
+    }                                                                                \
+    case 0x03: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = tmp_a[i] & 0x0F;                                                        \
+        a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+        a1 = (tmp_a[i]>>4) & 0x0F;                                                   \
+        a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+        b0 = tmp_b[i] & 0x0F;                                                        \
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+        b1 = (tmp_b[i]>>4) & 0x0F;                                                   \
+        b1 = (sign & 0x1) ? ((b1 & 0x08) ? ( b1 | 0xF0) : (b1 & 0x0F) ): (b1 & 0x0F);\
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1);                       \
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1);                      \
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1));   \
+        out += mid;                                                                  \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x04: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1, a2, a3;                                                         \
+      int8_t b0, b1, b2, b3;                                                         \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = (tmp_a[i] & 0x03);                                                      \
+        a0 = (sign & 0x2) ? ((a0 & 0x02) ? ( a0 | 0xFC) : (a0 & 0x03) ): (a0 & 0x03);\
+        a1 = (tmp_a[i]>>2 & 0x03);                                                   \
+        a1 = (sign & 0x2) ? ((a1 & 0x02) ? ( a1 | 0xFC) : (a1 & 0x03) ): (a1 & 0x03);\
+        a2 = (tmp_a[i]>>4 & 0x03);                                                   \
+        a2 = (sign & 0x2) ? ((a2 & 0x02) ? ( a2 | 0xFC) : (a2 & 0x03) ): (a2 & 0x03);\
+        a3 = (tmp_a[i]>>6 & 0x03);                                                   \
+        a3 = (sign & 0x2) ? ((a3 & 0x02) ? ( a3 | 0xFC) : (a3 & 0x03) ): (a3 & 0x03);\
+        b0 = (tmp_b[i] & 0x03);                                                      \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+        b1 = (tmp_b[i]>>2 & 0x03);                                                   \
+        b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+        b2 = (tmp_b[i]>>4 & 0x03);                                                   \
+        b2 = (sign & 0x1) ? ((b2 & 0x02) ? ( b2 | 0xFC) : (b2 & 0x03) ): (b2 & 0x03);\
+        b3 = (tmp_b[i]>>6 & 0x03);                                                   \
+        b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1) + ((uint8_t)a2 oper b2) + ((uint8_t)a3 oper b3);\
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1) + (a2 oper (uint8_t) b2) + (a3 oper (uint8_t)b3);\
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1)) + ((uint8_t)a2 oper (uint8_t)b2) + (((uint8_t)a3 oper (uint8_t)b3));\
+        out += mid;                                                                  \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x05: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0, a1;                                                                 \
+      int8_t b0, b1;                                                                 \
+      int i;                                                                         \
+      for (i = 0; i < 4; i++) {                                                      \
+        int mid;                                                                     \
+        a0 = tmp_a[i] & 0x0F;                                                        \
+        a0 = (sign & 0x2) ? ((a0 & 0x08) ? ( a0 | 0xF0) : (a0 & 0x0F) ): (a0 & 0x0F);\
+        a1 = (tmp_a[i] >> 4) & 0x0F;                                                 \
+        a1 = (sign & 0x2) ? ((a1 & 0x08) ? ( a1 | 0xF0) : (a1 & 0x0F) ): (a1 & 0x0F);\
+        b0 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i&0x1)*4)) & 0x03;\
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+        b1 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i&0x1)*4)+2) & 0x03;\
+        b1 = (sign & 0x1) ? ((b1 & 0x02) ? ( b1 | 0xFC) : (b1 & 0x03) ): (b1 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = (a0 oper b0) + (a1 oper b1);                                         \
+        else if (sign == 0x1)                                                        \
+          mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1);                       \
+        else if (sign == 0x2)                                                        \
+          mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1);                      \
+        else                                                                         \
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1));   \
+        out += mid;                                                                  \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x06: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0;                                                                     \
+      int8_t b0;                                                                     \
+      int i;                                                                         \
+      for(i=0; i<4; i++) {                                                           \
+        int mid;                                                                     \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[(i>>2) + iss->cpu.csr.ivec_mixed_cycle] >> (i * 2)) & 0x03;      \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? ( b0 | 0xFC) : (b0 & 0x03) ): (b0 & 0x03);\
+                                                                                     \
+        if (sign == 0x3)                                                             \
+          mid = a0 oper b0;                                                          \
+        else if (sign == 0x1)                                                        \
+          mid = (uint8_t)a0 oper b0;                                                 \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint8_t)b0;                                                 \
+        else                                                                         \
+          mid = (uint8_t)a0 oper (uint8_t)b0;                                        \
+        out += mid;                                                                  \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x07: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int16_t a0;                                                                    \
+      int16_t b0;                                                                    \
+      int i;                                                                         \
+      for(i=0; i<2; i++) {                                                           \
+        int mid;                                                                     \
+        int b_ind = iss->cpu.csr.ivec_mixed_cycle >> 2;                              \
+        int b_sh  = ((iss->cpu.csr.ivec_mixed_cycle & 0x3) * 4) + i * 2;             \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[b_ind] >> b_sh) & 0x3;                                           \
+        b0 = (sign & 0x1) ? ((b0 & 0x02) ? (b0 | 0xFFFC) : (b0 & 0x03) ) : (b0 & 0x03);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+        out += mid;                                                                  \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 7) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x08: {                                                                     \
+      int8_t *tmp_a = (int8_t*)&a;                                                   \
+      int8_t *tmp_b = (int8_t*)&b;                                                   \
+      int8_t a0;                                                                     \
+      int8_t b0;                                                                     \
+      int i;                                                                         \
+      for(i=0; i<4; i++) {                                                           \
+        int mid;                                                                     \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[(i>>1) + 2*iss->cpu.csr.ivec_mixed_cycle] >> ((i & 0x1) * 4)) & 0x0F;\
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint8_t)a0 oper b0;                                                 \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint8_t) b0;                                                \
+        else                                                                         \
+          mid = (uint8_t)a0 oper (uint8_t)b0;                                        \
+        out += mid;                                                                  \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0x09: {                                                                     \
+      int16_t *tmp_a = (int16_t*)&a;                                                 \
+      int16_t *tmp_b = (int16_t*)&b;                                                 \
+      int16_t a0;                                                                    \
+      int16_t b0;                                                                    \
+      int i;                                                                         \
+      for(i=0; i<2; i++) {                                                           \
+        int mid;                                                                     \
+        int b_ind = iss->cpu.csr.ivec_mixed_cycle >> 1;                              \
+        int b_sh  = (i + (iss->cpu.csr.ivec_mixed_cycle & 0x1)*2) * 4;               \
+        a0 = tmp_a[i];                                                               \
+        b0 = (tmp_b[b_ind] >> b_sh) & 0x0F;                                          \
+        b0 = (sign & 0x1) ? ((b0 & 0x08) ? ( b0 | 0xFFF0) : (b0 & 0x0F) ): (b0 & 0x0F);\
+                                                                                     \
+        if(sign == 0x3)                                                              \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+        out += mid;                                                                  \
+      }                                                                              \
+                                                                                     \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+    case 0xA: {                                                                      \
+    int16_t *tmp_a = (int16_t*)&a;                                                   \
+    int16_t *tmp_b = (int16_t*)&b;                                                   \
+    int16_t a0;                                                                      \
+    int16_t b0;                                                                      \
+    int i;                                                                           \
+    for(i=0; i<2; i++) {                                                             \
+      int mid;                                                                       \
+      a0 = tmp_a[i];                                                                 \
+      b0 = (tmp_b[iss->cpu.csr.ivec_mixed_cycle] >> (i*8)) &0xFF;                    \
+      b0 = (sign & 0x1) ? ((b0 & 0x80) ? (b0 | 0xFF00) : (b0 & 0xFF) ): (b0 & 0xFF); \
+                                                                                     \
+      if(sign == 0x3)                                                                \
+          mid = a0 oper b0;                                                          \
+        else if(sign == 0x1)                                                         \
+          mid = (uint16_t)a0 oper b0;                                                \
+        else if (sign == 0x2)                                                        \
+          mid = a0 oper (uint16_t) b0;                                               \
+        else                                                                         \
+          mid = (uint16_t)a0 oper (uint16_t)b0;                                      \
+      out += mid;                                                                    \
+    }                                                                                \
+                                                                                     \
+    if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                   \
+        iss->cpu.pulp_nn.mix_ops++;                                                  \
+      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
+      }                                                                              \
+      else {                                                                         \
+        iss->cpu.pulp_nn.mix_ops = 0;                                                \
+        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      }                                                                              \
+      break;                                                                         \
+    }                                                                                \
+  }                                                                                  \
+                                                                                     \
+  return out;                                                                        \
+}                                                                                    \
+}
+
+VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int16_t, int16_t, 16, 2, 0x3, *)
+VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 8, 4, 0x3, *)
+VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 4, 8, 0x3, *)
+VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 2, 16, 0x3, *)
+
+VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, 16, 2, 0x0, *)
+VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 8, 4, 0x0, *)
+VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 4, 8, 0x0, *);
+VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 2, 16, 0x0, *);
+
+VEC_SDOT_SB(SDOTUSP, int32_t, uint32_t, int32_t, uint16_t, int16_t, 16, 2, 0x1, *)
+VEC_SDOT_SB(SDOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 8, 4, 0x1, *)
+VEC_SDOT_SB(SDOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 4, 8, 0x1, *)
+VEC_SDOT_SB(SDOTUSP, int32_t, uint32_t, int32_t, uint8_t, int8_t, 2, 16, 0x1, *)
+
 
 
 /*

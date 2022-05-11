@@ -268,6 +268,8 @@ void iss_reset(iss_t *iss, int active)
     iss->cpu.state.elw_insn = NULL;
 
     iss_irq_init(iss);
+
+    iss->cpu.pulp_nn.mix_ops = 0;
   }
 
   iss_csr_init(iss, active);

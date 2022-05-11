@@ -59,6 +59,7 @@ static int decode_info(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
   {
     return info->u.sim;
   }
+  //else if (info->type == )
 
   return 0;
 }
@@ -178,6 +179,10 @@ static int decode_insn(iss_t *iss, iss_insn_t *insn, iss_opcode_t opcode, iss_de
         insn->in_regs[darg->u.indirect_reg.offset_reg.id] = arg->u.indirect_reg.offset_reg_index;
 
         break;
+
+      case ISS_DECODER_ARG_TYPE_FLAG:
+        if(darg->flags & ISS_DECODER_ARG_FLAG_SB)
+          arg->status_based = true;
     }
   }
 

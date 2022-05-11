@@ -172,6 +172,50 @@ static bool fprec_write(iss_t *iss, unsigned int value) {
 
 
 
+static bool sb_legacy_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.sb_legacy;
+  return false;
+}
+
+static bool sb_legacy_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.sb_legacy = value & 0x01;
+  return false;
+}
+
+
+static bool ivec_fmt_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.ivec_fmt;
+  return false;
+}
+
+static bool ivec_fmt_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.ivec_fmt = value & 0xFF;
+  return false;
+}
+
+
+static bool ivec_mixed_cycle_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.ivec_mixed_cycle;
+  return false;
+}
+
+static bool ivec_mixed_cycle_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.ivec_mixed_cycle = value & 0x7;
+  return false;
+}
+
+
+static bool ivec_skip_size_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.ivec_skip_size;
+  return false;
+}
+
+static bool ivec_skip_size_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.ivec_skip_size = value & 0x1F;
+  return false;
+}
+
+
 static bool cycle_read(iss_t *iss, iss_reg_t *value) {
   printf("WARNING UNIMPLEMENTED CSR: cycle\n");
   return false;
@@ -1106,6 +1150,12 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0xC81: status = timeh_read     (iss, value); break;
     case 0xC82: status = instreth_read  (iss, value); break;
 
+    // User status-based CSRs
+    case 0x00D: status = ivec_fmt_read  (iss, value); break;
+    case 0x00E: status = ivec_mixed_cycle_read (iss, value); break;
+    case 0x00F: status = ivec_skip_size_read (iss, value); break;
+    case 0x010: status = sb_legacy_read (iss, value); break;
+
 
 
 
@@ -1273,6 +1323,11 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x003: return fcsr_write      (iss, value);
     case 0x006: return fprec_write     (iss, value);
 
+    // User status-based CSRs
+    case 0x00D: return ivec_fmt_write  (iss, value);
+    case 0x00E: return ivec_mixed_cycle_write (iss, value);
+    case 0x00F: return ivec_skip_size_write   (iss, value);
+    case 0x010: return sb_legacy_write (iss, value);
 
 
 
@@ -1383,4 +1438,8 @@ void iss_csr_init(iss_t *iss, int reset)
   iss->cpu.csr.pcer = 3;
 #endif
   iss->cpu.csr.stack_conf = 0;
+  iss->cpu.csr.ivec_fmt = 0;
+  iss->cpu.csr.ivec_mixed_cycle = 0;
+  iss->cpu.csr.ivec_skip_size = 0;
+  iss->cpu.csr.sb_legacy = 1;
 }

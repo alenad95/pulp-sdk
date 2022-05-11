@@ -90,7 +90,7 @@ class iss;
 #define ISS_PREFETCHER_SIZE (ISS_OPCODE_MAX_SIZE*4)
 
 #define ISS_MAX_DECODE_RANGES 8
-#define ISS_MAX_DECODE_ARGS 5
+#define ISS_MAX_DECODE_ARGS 6
 #define ISS_MAX_IMMEDIATES 4
 #define ISS_MAX_NB_OUT_REGS 3
 #define ISS_MAX_NB_IN_REGS 3
@@ -130,6 +130,7 @@ typedef enum {
   ISS_DECODER_ARG_FLAG_COMPRESSED = 4,
   ISS_DECODER_ARG_FLAG_FREG = 8,
   ISS_DECODER_ARG_FLAG_REG64 = 16,
+  ISS_DECODER_ARG_FLAG_SB = 17,
 } iss_decoder_arg_flag_e;
 
 typedef struct iss_insn_arg_s {
@@ -160,6 +161,8 @@ typedef struct iss_insn_arg_s {
       iss_reg_t offset_reg_value;
     } indirect_reg;
   } u;
+
+  bool status_based;
 } iss_insn_arg_t;
 
 typedef struct iss_decoder_range_s {
@@ -420,6 +423,10 @@ typedef struct iss_csr_s
   iss_reg_t stack_end;
   iss_reg_t scratch0;
   iss_reg_t scratch1;
+  iss_reg_t ivec_fmt;
+  iss_reg_t ivec_mixed_cycle;
+  iss_reg_t ivec_skip_size;
+  iss_reg_t sb_legacy;
 } iss_csr_t;
 
 
@@ -440,6 +447,7 @@ typedef struct iss_pulp_nn_s
   iss_reg_t qnt_reg_out;
   iss_reg_t spr_ml[6];
   iss_insn_t *ml_insn;
+  iss_reg_t mix_ops;
 } iss_pulp_nn_t;
 
 
