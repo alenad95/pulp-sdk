@@ -300,44 +300,110 @@ static inline iss_insn_t *pv_##insn_name##_h_exec(iss_t *iss, iss_insn_t *insn) 
                                                                                                          \
   if(signOpA)                                                                                            \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_16, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));      \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_16, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));    \
+    } \
+    else {\
+      if(insn->out_regs[0] == 0) \
+        iss->cpu.pulp_nn.macl_init = true; \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_16, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+      iss->cpu.pulp_nn.macl_init = false; \
+    }\
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_16, REG_GET(0), SPR_GET(wt_addr), SPR_GET(ac_addr)));      \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_16, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));    \
+    }\
+    else {\
+      if(insn->out_regs[0] == 0) \
+        iss->cpu.pulp_nn.macl_init = true; \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_16, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+      iss->cpu.pulp_nn.macl_init = false; \
+    }\
   }                                                                                                      \
                                                                                                          \
   if(ac_update)                                                                                          \
   {                                                                                                      \
-    iss_reg_t addr = REG_GET(1);                                                                         \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                    \
-    {                                                                                                    \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));        \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
     }                                                                                                    \
-    else                                                                                                 \
-    {                                                                                                    \
-      iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                         \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                   \
-      iss_exec_insn_stall(iss);                                                                          \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_a_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_a_up < iss->cpu.csr.macl_a_skip) {                                        \
+        iss->cpu.pulp_nn.macl_a_up++;                                                                    \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_a_up = 0;                                                                  \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_rollback;                                        \
+      }                                                                                                  \
     }                                                                                                    \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                           \
-    IN_REG_SET(1, addr + 4);                                                                             \
   }                                                                                                      \
   else if (wt_update)                                                                                    \
   {                                                                                                      \
-    iss_reg_t addr = REG_GET(1);                                                                         \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                    \
-    {                                                                                                    \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));        \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
     }                                                                                                    \
-    else                                                                                                 \
-    {                                                                                                    \
-      iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                         \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                   \
-      iss_exec_insn_stall(iss);                                                                          \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_w_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_h_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_w_up < iss->cpu.csr.macl_w_skip) {                                        \
+        iss->cpu.pulp_nn.macl_w_up++;                                                                    \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_w_up = 0;                                                                  \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_rollback;                                        \
+      }                                                                                                  \
     }                                                                                                    \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                           \
-    IN_REG_SET(1, addr + 4);                                                                             \
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
@@ -356,44 +422,104 @@ static inline iss_insn_t *pv_##insn_name##_b_exec(iss_t *iss, iss_insn_t *insn) 
                                                                                                          \
   if(signOpA)                                                                                            \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_8, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));       \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_8, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_8, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+    }                                                                                                    \
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_8, REG_GET(0), SPR_GET(wt_addr), SPR_GET(ac_addr)));       \
+    if (insn->args[4].status_based == false) {                                                           \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_8, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_8, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+    }                                                                                                    \
   }                                                                                                      \
                                                                                                          \
   if(ac_update)                                                                                          \
   {                                                                                                      \
-    iss_reg_t addr = REG_GET(1);                                                                         \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                    \
-    {                                                                                                    \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));        \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
     }                                                                                                    \
-    else                                                                                                 \
-    {                                                                                                    \
-      iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                         \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                   \
-      iss_exec_insn_stall(iss);                                                                          \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_a_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_a_up < iss->cpu.csr.macl_a_skip) {                                        \
+        iss->cpu.pulp_nn.macl_a_up++;                                                                    \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_a_up = 0;                                                                  \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_rollback;                                        \
+      }                                                                                                  \
     }                                                                                                    \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                           \
-    IN_REG_SET(1, addr + 4);                                                                             \
   }                                                                                                      \
   else if (wt_update)                                                                                    \
   {                                                                                                      \
-    iss_reg_t addr = REG_GET(1);                                                                         \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                    \
-    {                                                                                                    \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));        \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
     }                                                                                                    \
-    else                                                                                                 \
-    {                                                                                                    \
-      iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                         \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                   \
-      iss_exec_insn_stall(iss);                                                                          \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_w_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_b_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_w_up < iss->cpu.csr.macl_w_skip) {                                        \
+        iss->cpu.pulp_nn.macl_w_up++;                                                                    \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_w_up = 0;                                                                  \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_rollback;                                        \
+      }                                                                                                  \
     }                                                                                                    \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                           \
-    IN_REG_SET(1, addr + 4);                                                                             \
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
@@ -412,111 +538,231 @@ static inline iss_insn_t *pv_##insn_name##_n_exec(iss_t *iss, iss_insn_t *insn) 
                                                                                                          \
   if(signOpA)                                                                                            \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));       \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_4, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+    }                                                                                                    \
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(0), SPR_GET(wt_addr), SPR_GET(ac_addr)));       \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_4, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_4, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+    }                                                                                                    \
   }                                                                                                      \
-                                                                                                                      \
-  if(ac_update)                                                                                                       \
-  {                                                                                                                   \
-    iss_reg_t addr = REG_GET(1);                                                                                       \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                             \
-    {                                                                                                                 \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));   \
-    }                                                                                                                 \
-    else                                                                                                              \
-    {                                                                                                                 \
-      iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                                      \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                               \
-      iss_exec_insn_stall(iss);                                                                                       \
-    }                                                                                                                 \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);   \
-    IN_REG_SET(1, addr + 4);                                                                                            \
-  }                                                                                                                   \
-  else if (wt_update)                                                                                                 \
-  {                                                                                                                   \
-    iss_reg_t addr = REG_GET(1);                                                                                       \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                             \
-    {                                                                                                                 \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr)); \
-    }                                                                                                                 \
-    else                                                                                                              \
-    {                                                                                                                 \
-      iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                                      \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                               \
-      iss_exec_insn_stall(iss);                                                                                       \
-    }                                                                                                                 \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4); \
-    IN_REG_SET(1, addr + 4);                                                                                            \
-  }                                                                                                                   \
-  else                                                                                                                \
-  {                                                                                                                   \
-    iss_msg(iss, "No address updating\n");                        \
-  }                                                                                                                   \
-  return insn->next;                                                                                                  \
-}                                                                                                                     \
-static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                                       \
-{                                                                                                                     \
-  iss_uim_t ctl_imm = UIM_GET(0);                                                                         \
-                                                                                                                      \
-  int ac_addr = ((ctl_imm & ASPR_ADDR_MASK) >> ASPR_ADDR_POS);                                                                                           \
-  int wt_addr = ((ctl_imm & WSPR_ADDR_MASK) >> WSPR_ADDR_POS) + 0x2;                                                               \
-  bool ac_update = ((ctl_imm & ASPR_UPDATE_MASK) >> ASPR_UPDATE_POS);                                                                                        \
-  bool wt_update = ((ctl_imm & WSPR_UPDATE_MASK) >> WSPR_UPDATE_POS);                                                                                        \
-                                                                                                                      \
+                                                                                                         \
+  if(ac_update)                                                                                          \
+  {                                                                                                      \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
+    }                                                                                                    \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_a_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_a_up < iss->cpu.csr.macl_a_skip) {                                        \
+        iss->cpu.pulp_nn.macl_a_up++;                                                                    \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_a_up = 0;                                                                  \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_rollback;                                        \
+      }                                                                                                  \
+    }                                                                                                    \
+  }                                                                                                      \
+  else if (wt_update)                                                                                    \
+  {                                                                                                      \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
+    }                                                                                                    \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_w_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_n_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_w_up < iss->cpu.csr.macl_w_skip) {                                        \
+        iss->cpu.pulp_nn.macl_w_up++;                                                                    \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_w_up = 0;                                                                  \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_rollback;                                        \
+      }                                                                                                  \
+    }                                                                                                    \
+  }                                                                                                      \
+  else                                                                                                   \
+  {                                                                                                      \
+    iss_msg(iss, "No address updating\n");                                                               \
+  }                                                                                                      \
+  return insn->next;                                                                                     \
+}                                                                                                        \
+static inline iss_insn_t *pv_##insn_name##_c_exec(iss_t *iss, iss_insn_t *insn)                          \
+{                                                                                                        \
+  iss_uim_t ctl_imm = UIM_GET(0);                                                                        \
+                                                                                                         \
+  int ac_addr = ((ctl_imm & ASPR_ADDR_MASK) >> ASPR_ADDR_POS);                                           \
+  int wt_addr = ((ctl_imm & WSPR_ADDR_MASK) >> WSPR_ADDR_POS) + 0x2;                                     \
+  bool ac_update = ((ctl_imm & ASPR_UPDATE_MASK) >> ASPR_UPDATE_POS);                                    \
+  bool wt_update = ((ctl_imm & WSPR_UPDATE_MASK) >> WSPR_UPDATE_POS);                                    \
+                                                                                                         \
   if(signOpA)                                                                                            \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));       \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_2, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss));\
+    }                                                                                                    \
   }                                                                                                      \
   else                                                                                                   \
   {                                                                                                      \
-    REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(0), SPR_GET(wt_addr), SPR_GET(ac_addr)));       \
+    if(insn->args[4].status_based == false) {                                                            \
+      REG_SET(0, LIB_CALL3(lib_VEC_##lib_name##_2, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr)));     \
+    }                                                                                                    \
+    else {                                                                                               \
+      REG_SET(0, LIB_CALL4(lib_VEC_##lib_name##_SB_2, REG_GET(0), SPR_GET(ac_addr), SPR_GET(wt_addr), iss)); \
+    }                                                                                                    \
   }                                                                                                      \
-                                                                                                                      \
-  if(ac_update)                                                                                                       \
-  {                                                                                                                   \
-    iss_reg_t addr = REG_GET(1);                                                                                       \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                             \
-    {                                                                                                                 \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));   \
-    }                                                                                                                 \
-    else                                                                                                              \
-    {                                                                                                                 \
-      iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                                      \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                               \
-      iss_exec_insn_stall(iss);                                                                                       \
-    }                                                                                                                 \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);   \
-    IN_REG_SET(1, addr + 4);                                                                                            \
-  }                                                                                                                   \
-  else if (wt_update)                                                                                                 \
-  {                                                                                                                   \
-    iss_reg_t addr = REG_GET(1);                                                                                       \
-    if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                             \
-    {                                                                                                                 \
-      iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr)); \
-    }                                                                                                                 \
-    else                                                                                                              \
-    {                                                                                                                 \
-      iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                                      \
-      iss->cpu.pulp_nn.ml_insn = insn;                                                                               \
-      iss_exec_insn_stall(iss);                                                                                       \
-    }                                                                                                                 \
-    iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4); \
-    IN_REG_SET(1, addr + 4);                                                                                            \
-  }                                                                                                                   \
-  else                                                                                                                \
-  {                                                                                                                   \
-    iss_msg(iss, "No address updating\n");                        \
-  }                                                                                                                   \
-  return insn->next;                                                                                                  \
-}                                                                                                                     \
+                                                                                                         \
+  if(ac_update)                                                                                          \
+  {                                                                                                      \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
+    }                                                                                                    \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_a_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[ac_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", ac_addr, SPR_GET(ac_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_a_up < iss->cpu.csr.macl_a_skip) {                                        \
+        iss->cpu.pulp_nn.macl_a_up++;                                                                    \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_a_up = 0;                                                                  \
+        iss->cpu.csr.macl_a_addr += iss->cpu.csr.macl_a_rollback;                                        \
+      }                                                                                                  \
+    }                                                                                                    \
+  }                                                                                                      \
+  else if (wt_update)                                                                                    \
+  {                                                                                                      \
+    if((insn->args[4].status_based == false) | (iss->cpu.csr.sb_legacy == 0x1)) {                        \
+      iss_reg_t addr = REG_GET(1);                                                                       \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr + 4);                                                                           \
+    }                                                                                                    \
+    else {                                                                                               \
+      iss_reg_t addr = iss->cpu.csr.macl_w_addr;                                                         \
+      if (!iss->data_req(addr, (uint8_t *)&iss->cpu.pulp_nn.spr_ml[wt_addr], 4, false))                  \
+      {                                                                                                  \
+        iss_msg(iss, "Loaded new value (spr_loc: 0x%x, value: 0x%x)\n", wt_addr, SPR_GET(wt_addr));      \
+      }                                                                                                  \
+      else                                                                                               \
+      {                                                                                                  \
+        iss->cpu.state.stall_callback = pv_##insn_name##_c_resume;                                       \
+        iss->cpu.pulp_nn.ml_insn = insn;                                                                 \
+        iss_exec_insn_stall(iss);                                                                        \
+      }                                                                                                  \
+      iss_msg(iss, "Address updating (addr: 0x%x)\n", addr + 4);                                         \
+      IN_REG_SET(1, addr+4);                                                                             \
+      if(iss->cpu.pulp_nn.macl_w_up < iss->cpu.csr.macl_w_skip) {                                        \
+        iss->cpu.pulp_nn.macl_w_up++;                                                                    \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_stride;                                          \
+      }                                                                                                  \
+      else {                                                                                             \
+        iss->cpu.pulp_nn.macl_w_up = 0;                                                                  \
+        iss->cpu.csr.macl_w_addr += iss->cpu.csr.macl_w_rollback;                                        \
+      }                                                                                                  \
+    }                                                                                                    \
+  }                                                                                                      \
+  else                                                                                                   \
+  {                                                                                                      \
+    iss_msg(iss, "No address updating\n");                                                               \
+  }                                                                                                      \
+  return insn->next;                                                                                     \
+}                                                                                                        \
 
 PV_OP_RRRU3_EXEC_NN(mlsdotup,SDOTUP,0)
-PV_OP_RRRU3_EXEC_NN(mlsdotusp,SDOTUSP,0)
-PV_OP_RRRU3_EXEC_NN(mlsdotsup,SDOTUSP,1)
+PV_OP_RRRU3_EXEC_NN(mlsdotusp,SDOTSUP,1)
+PV_OP_RRRU3_EXEC_NN(mlsdotsup,SDOTUSP,0)
 PV_OP_RRRU3_EXEC_NN(mlsdotsp,SDOTSP,1)
 
 

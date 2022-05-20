@@ -205,6 +205,96 @@ static bool ivec_mixed_cycle_write(iss_t *iss, unsigned int value) {
 }
 
 
+static bool macl_a_addr_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_a_addr;
+  return false;
+}
+
+static bool macl_a_addr_write(iss_t *iss, unsigned int value){
+  iss->cpu.csr.macl_a_addr = value;
+  iss->cpu.pulp_nn.macl_a_up = 0;
+  return false;
+}
+
+
+static bool macl_w_addr_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_w_addr;
+  return false;
+}
+
+static bool macl_w_addr_write(iss_t *iss, unsigned int value){
+  iss->cpu.csr.macl_w_addr = value;
+  iss->cpu.pulp_nn.macl_w_up = 0;
+  return false;
+}
+
+
+static bool macl_a_stride_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_a_stride;
+  return false;
+}
+
+static bool macl_a_stride_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.macl_a_stride = value;
+  return false;
+}
+
+
+static bool macl_w_stride_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_w_stride;
+  return false;
+}
+
+static bool macl_w_stride_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.macl_w_stride = value;
+  return false;
+}
+
+
+static bool macl_a_rollback_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_a_rollback;
+  return false;
+}
+
+static bool macl_a_rollback_write(iss_t *iss, int value) {
+  iss->cpu.csr.macl_a_rollback = value;
+  return false;
+}
+
+
+static bool macl_w_rollback_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_w_rollback;
+  return false;
+}
+
+static bool macl_w_rollback_write(iss_t *iss, int value) {
+  iss->cpu.csr.macl_w_rollback = value;
+  return false;
+}
+
+
+static bool macl_a_skip_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_a_skip;
+  return false;
+}
+
+static bool macl_a_skip_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.macl_a_skip = value;
+  return false;
+}
+
+
+static bool macl_w_skip_read(iss_t *iss, iss_reg_t *value) {
+  *value = iss->cpu.csr.macl_w_skip;
+  return false;
+}
+
+static bool macl_w_skip_write(iss_t *iss, unsigned int value) {
+  iss->cpu.csr.macl_w_skip = value;
+  return false;
+}
+
+
 static bool ivec_skip_size_read(iss_t *iss, iss_reg_t *value) {
   *value = iss->cpu.csr.ivec_skip_size;
   return false;
@@ -1156,15 +1246,22 @@ bool iss_csr_read(iss_t *iss, iss_reg_t reg, iss_reg_t *value)
     case 0x00F: status = ivec_skip_size_read (iss, value); break;
     case 0x010: status = sb_legacy_read (iss, value); break;
 
-
+    case 0x100: status = macl_a_addr_read (iss, value); break;
+    case 0x101: status = macl_w_addr_read (iss, value); break;
+    case 0x102: status = macl_a_stride_read (iss, value); break;
+    case 0x103: status = macl_w_stride_read (iss, value); break;
+    case 0x104: status = macl_a_rollback_read (iss, value); break;
+    case 0x105: status = macl_w_rollback_read (iss, value); break;
+    case 0x106: status = macl_a_skip_read (iss, value); break;
+    case 0x107: status = macl_w_skip_read (iss, value); break;
 
 
     // Supervisor trap setup
-    case 0x100: status = sstatus_read   (iss, value); break;
+    /*case 0x100: status = sstatus_read   (iss, value); break;
     case 0x102: status = sedeleg_read   (iss, value); break;
     case 0x103: status = sideleg_read   (iss, value); break;
     case 0x104: status = sie_read       (iss, value); break;
-    case 0x105: status = stvec_read     (iss, value); break;
+    case 0x105: status = stvec_read     (iss, value); break;*/
 
     // Supervisor trap handling
     case 0x140: status = sscratch_read  (iss, value); break;
@@ -1329,14 +1426,21 @@ bool iss_csr_write(iss_t *iss, iss_reg_t reg, iss_reg_t value)
     case 0x00F: return ivec_skip_size_write   (iss, value);
     case 0x010: return sb_legacy_write (iss, value);
 
-
+    case 0x100: return macl_a_addr_write(iss, value);
+    case 0x101: return macl_w_addr_write(iss, value);
+    case 0x102: return macl_a_stride_write(iss, value);
+    case 0x103: return macl_w_stride_write(iss, value);
+    case 0x104: return macl_a_rollback_write(iss, value);
+    case 0x105: return macl_w_rollback_write(iss, value);
+    case 0x106: return macl_a_skip_write(iss, value);
+    case 0x107: return macl_w_skip_write(iss, value);
 
     // Supervisor trap setup
-    case 0x100: return sstatus_write   (iss, value);
+    /*case 0x100: return sstatus_write   (iss, value);
     case 0x102: return sedeleg_write   (iss, value);
     case 0x103: return sideleg_write   (iss, value);
     case 0x104: return sie_write       (iss, value);
-    case 0x105: return stvec_write     (iss, value);
+    case 0x105: return stvec_write     (iss, value);*/
 
     // Supervisor trap handling
     case 0x140: return sscratch_write  (iss, value);
@@ -1442,4 +1546,12 @@ void iss_csr_init(iss_t *iss, int reset)
   iss->cpu.csr.ivec_mixed_cycle = 0;
   iss->cpu.csr.ivec_skip_size = 0;
   iss->cpu.csr.sb_legacy = 1;
+  iss->cpu.csr.macl_a_addr = 0;
+  iss->cpu.csr.macl_w_addr = 0;
+  iss->cpu.csr.macl_a_stride = 0;
+  iss->cpu.csr.macl_w_stride = 0;
+  iss->cpu.csr.macl_a_rollback = 0;
+  iss->cpu.csr.macl_w_rollback = 0;
+  iss->cpu.csr.macl_a_skip = 0;
+  iss->cpu.csr.macl_w_skip = 0;
 }

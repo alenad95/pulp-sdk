@@ -270,6 +270,9 @@ void iss_reset(iss_t *iss, int active)
     iss_irq_init(iss);
 
     iss->cpu.pulp_nn.mix_ops = 0;
+    iss->cpu.pulp_nn.macl_a_up = 0;
+    iss->cpu.pulp_nn.macl_w_up = 0;
+    iss->cpu.pulp_nn.macl_init = false;
   }
 
   iss_csr_init(iss, active);

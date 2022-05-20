@@ -239,6 +239,7 @@ class R5(Instr):
                             InReg (0, Range(7,  5)),
                             InReg (1, Range(15, 5)),
                             UnsignedImm(0, Range(20, 5)),
+                            StatusBased(sb=True),
                             ]
         elif format == 'RRRRU':
             self.args = [   OutReg(0, Range(7,  5)),

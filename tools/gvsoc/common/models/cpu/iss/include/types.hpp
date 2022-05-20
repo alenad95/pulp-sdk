@@ -427,6 +427,14 @@ typedef struct iss_csr_s
   iss_reg_t ivec_mixed_cycle;
   iss_reg_t ivec_skip_size;
   iss_reg_t sb_legacy;
+  iss_reg_t macl_a_addr;
+  iss_reg_t macl_w_addr;
+  iss_reg_t macl_a_stride;
+  iss_reg_t macl_w_stride;
+  iss_reg_t macl_a_rollback;
+  iss_reg_t macl_w_rollback;
+  iss_reg_t macl_a_skip;
+  iss_reg_t macl_w_skip;
 } iss_csr_t;
 
 
@@ -448,6 +456,9 @@ typedef struct iss_pulp_nn_s
   iss_reg_t spr_ml[6];
   iss_insn_t *ml_insn;
   iss_reg_t mix_ops;
+  iss_reg_t macl_a_up;
+  iss_reg_t macl_w_up;
+  bool macl_init;
 } iss_pulp_nn_t;
 
 

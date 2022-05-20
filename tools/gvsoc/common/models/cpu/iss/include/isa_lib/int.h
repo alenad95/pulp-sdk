@@ -1399,6 +1399,9 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
 VEC_SDOT(SDOTSP, int32_t, int32_t, int32_t, int16_t, int16_t, 16, 2, *)
 VEC_SDOT(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 8, 4, *)
 
+VEC_SDOT(SDOTSUP, int32_t, int32_t, uint32_t, int16_t, uint16_t, 16, 2, *)
+VEC_SDOT(SDOTSUP, int32_t, int32_t, uint32_t, int8_t, uint8_t, 8, 4, *)
+
 VEC_SDOT(SDOTUP, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, 16, 2, *)
 VEC_SDOT(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 8, 4, *)
 
@@ -1604,15 +1607,17 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         out += mid;                                                                  \
       }                                                                              \
                                                                                      \
-      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
-        iss->cpu.pulp_nn.mix_ops++;                                                  \
-      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
-      }                                                                              \
-      else {                                                                         \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      if(iss->cpu.pulp_nn.macl_init == false) {                                      \
+        if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)               \
+          iss->cpu.pulp_nn.mix_ops++;                                                \
+        else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle = 0;                                         \
+        }                                                                            \
+        else {                                                                       \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle++;                                           \
+        }                                                                            \
       }                                                                              \
       break;                                                                         \
     }                                                                                \
@@ -1639,15 +1644,17 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         out += mid;                                                                  \
       }                                                                              \
                                                                                      \
-      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
-        iss->cpu.pulp_nn.mix_ops++;                                                  \
-      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
-      }                                                                              \
-      else {                                                                         \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      if(iss->cpu.pulp_nn.macl_init == false) {                                      \
+        if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)               \
+          iss->cpu.pulp_nn.mix_ops++;                                                \
+        else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle = 0;                                         \
+        }                                                                            \
+        else {                                                                       \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle++;                                           \
+        }                                                                            \
       }                                                                              \
       break;                                                                         \
     }                                                                                \
@@ -1676,15 +1683,17 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         out += mid;                                                                  \
       }                                                                              \
                                                                                      \
-      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
-        iss->cpu.pulp_nn.mix_ops++;                                                  \
-      else if(iss->cpu.csr.ivec_mixed_cycle >= 7) {                                  \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
-      }                                                                              \
-      else {                                                                         \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      if(iss->cpu.pulp_nn.macl_init == false) {                                      \
+        if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)               \
+          iss->cpu.pulp_nn.mix_ops++;                                                \
+        else if(iss->cpu.csr.ivec_mixed_cycle >= 7) {                                \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle = 0;                                         \
+        }                                                                            \
+        else {                                                                       \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle++;                                           \
+        }                                                                            \
       }                                                                              \
       break;                                                                         \
     }                                                                                \
@@ -1711,15 +1720,17 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         out += mid;                                                                  \
       }                                                                              \
                                                                                      \
-      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
-        iss->cpu.pulp_nn.mix_ops++;                                                  \
-      else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
-      }                                                                              \
-      else {                                                                         \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      if(iss->cpu.pulp_nn.macl_init == false) {                                      \
+        if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)               \
+          iss->cpu.pulp_nn.mix_ops++;                                                \
+        else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle = 0;                                         \
+        }                                                                            \
+        else {                                                                       \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle++;                                           \
+        }                                                                            \
       }                                                                              \
       break;                                                                         \
     }                                                                                \
@@ -1748,15 +1759,17 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         out += mid;                                                                  \
       }                                                                              \
                                                                                      \
-      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
-        iss->cpu.pulp_nn.mix_ops++;                                                  \
-      else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                  \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle = 0;                                           \
-      }                                                                              \
-      else {                                                                         \
-        iss->cpu.pulp_nn.mix_ops = 0;                                                \
-        iss->cpu.csr.ivec_mixed_cycle++;                                             \
+      if(iss->cpu.pulp_nn.macl_init == false) {                                      \
+        if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)               \
+          iss->cpu.pulp_nn.mix_ops++;                                                \
+        else if(iss->cpu.csr.ivec_mixed_cycle >= 3) {                                \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle = 0;                                         \
+        }                                                                            \
+        else {                                                                       \
+          iss->cpu.pulp_nn.mix_ops = 0;                                              \
+          iss->cpu.csr.ivec_mixed_cycle++;                                           \
+        }                                                                            \
       }                                                                              \
       break;                                                                         \
     }                                                                                \
@@ -1783,7 +1796,8 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
       out += mid;                                                                    \
     }                                                                                \
                                                                                      \
-    if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                   \
+    if(iss->cpu.pulp_nn.macl_init == false) {                                        \
+      if((iss->cpu.pulp_nn.mix_ops+1) < iss->cpu.csr.ivec_skip_size)                 \
         iss->cpu.pulp_nn.mix_ops++;                                                  \
       else if(iss->cpu.csr.ivec_mixed_cycle >= 1) {                                  \
         iss->cpu.pulp_nn.mix_ops = 0;                                                \
@@ -1793,6 +1807,7 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         iss->cpu.pulp_nn.mix_ops = 0;                                                \
         iss->cpu.csr.ivec_mixed_cycle++;                                             \
       }                                                                              \
+    }                                                                                \
       break;                                                                         \
     }                                                                                \
   }                                                                                  \
@@ -1805,6 +1820,11 @@ VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int16_t, int16_t, 16, 2, 0x3, *)
 VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 8, 4, 0x3, *)
 VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 4, 8, 0x3, *)
 VEC_SDOT_SB(SDOTSP, int32_t, int32_t, int32_t, int8_t, int8_t, 2, 16, 0x3, *)
+
+VEC_SDOT_SB(SDOTSUP, int32_t, int32_t, int32_t, int16_t, int16_t, 16, 2, 0x2, *)
+VEC_SDOT_SB(SDOTSUP, int32_t, int32_t, int32_t, int8_t, int8_t, 8, 4, 0x2, *)
+VEC_SDOT_SB(SDOTSUP, int32_t, int32_t, int32_t, int8_t, int8_t, 4, 8, 0x2, *)
+VEC_SDOT_SB(SDOTSUP, int32_t, int32_t, int32_t, int8_t, int8_t, 2, 16, 0x2, *)
 
 VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, 16, 2, 0x0, *)
 VEC_SDOT_SB(SDOTUP, uint32_t, uint32_t, uint32_t, uint8_t, uint8_t, 8, 4, 0x0, *)
@@ -3592,6 +3612,9 @@ static inline typeOut lib_VEC_##operName##_SC_##elemSize(iss_cpu_state_t *s, typ
 }
 VEC_SDOT_NN(SDOTSP, int32_t, int32_t, int32_t, int4_t, int4_t, 4, 8, *, 1, 1)
 VEC_SDOT_NN(SDOTSP, int32_t, int32_t, int32_t, int2_t, int2_t, 2, 16, *, 1, 1)
+
+VEC_SDOT_NN(SDOTSUP, int32_t, int32_t, uint32_t, int4_t, uint4_t, 4, 8, *, 1, 0)
+VEC_SDOT_NN(SDOTSUP, int32_t, int32_t, uint32_t, int2_t, uint2_t, 2, 16, *, 1, 0)
 
 VEC_SDOT_NN(SDOTUP, uint32_t, uint32_t, uint32_t, uint4_t, uint4_t, 4, 8, *, 0, 0)
 VEC_SDOT_NN(SDOTUP, uint32_t, uint32_t, uint32_t, uint2_t, uint2_t, 2, 16, *, 0, 0)
