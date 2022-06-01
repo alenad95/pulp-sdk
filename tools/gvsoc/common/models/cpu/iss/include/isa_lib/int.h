@@ -1126,7 +1126,7 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
                                                                                      \
         if (sign == 0x3)                                                             \
-          mid = (a0 oper b0) + (a1 oper b1);                                         \
+          mid = (a0 oper b0) + (a1 oper b1) + (a2 oper b2) + (a3 oper b3);           \
         else if (sign == 0x1)                                                        \
           mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1) + ((uint8_t)a2 oper b2) + ((uint8_t)a3 oper b3);\
         else if (sign == 0x2)                                                        \
@@ -1568,13 +1568,13 @@ static inline typeOut lib_VEC_##operName##_SB_##elemSize(iss_cpu_state_t *s, typ
         b3 = (sign & 0x1) ? ((b3 & 0x02) ? ( b3 | 0xFC) : (b3 & 0x03) ): (b3 & 0x03);\
                                                                                      \
         if (sign == 0x3)                                                             \
-          mid = (a0 oper b0) + (a1 oper b1);                                         \
+          mid = (a0 oper b0) + (a1 oper b1) + (a2 oper b2) + (a3 oper b3);           \
         else if (sign == 0x1)                                                        \
           mid = ((uint8_t)a0 oper b0) + ((uint8_t)a1 oper b1) + ((uint8_t)a2 oper b2) + ((uint8_t)a3 oper b3);\
         else if (sign == 0x2)                                                        \
           mid = (a0 oper (uint8_t) b0) + (a1 oper (uint8_t)b1) + (a2 oper (uint8_t) b2) + (a3 oper (uint8_t)b3);\
         else                                                                         \
-          mid = ((uint8_t)a0 oper (uint8_t)b0) + (((uint8_t)a1 oper (uint8_t)b1)) + ((uint8_t)a2 oper (uint8_t)b2) + (((uint8_t)a3 oper (uint8_t)b3));\
+          mid = ((uint8_t)a0 oper (uint8_t)b0) + ((uint8_t)a1 oper (uint8_t)b1) + ((uint8_t)a2 oper (uint8_t)b2) + ((uint8_t)a3 oper (uint8_t)b3);\
         out += mid;                                                                  \
       }                                                                              \
       break;                                                                         \
